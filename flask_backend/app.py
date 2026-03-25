@@ -276,7 +276,7 @@ def create_app():
         app,
         resources={r"/api/*": {"origins": allow_origins}},
         supports_credentials=False,
-        methods=["GET", "POST", "OPTIONS"],
+        methods=["GET", "POST", "PATCH", "OPTIONS"],
         allow_headers=["Content-Type", "Authorization"],
     )
 
@@ -456,6 +456,53 @@ def create_app():
                 ]
             }
         )
+
+    @app.patch("/api/alerts/<int:alert_id>/mark-read")
+    def mark_alert_read(alert_id: int):
+        """Mark a specific alert as read.
+
+        Path params:
+        - alert_id: numeric alert ID
+
+        Returns:
+          { "alert": {id, status} } on success
+
+        Errors:
+          - 404 if the alert does not exist
+        """
+        with _connect(db_path) as conn:
+            row = conn.execute(
+                """
+                SELECT id, status
+                FROM alerts
+                WHERE id = ?;
+                """,
+                (alert_id,),
+            ).fetchone()
+
+            if not row:
+                return jsonify({"error": "Alert not found.", "id": alert_id}), 404
+
+            # Idempotent update.
+            conn.execute(
+                """
+                UPDATE alerts
+                SET status = 'read'
+                WHERE id = ?;
+                """,
+                (alert_id,),
+            )
+
+            updated = conn.execute(
+                """
+                SELECT id, status
+                FROM alerts
+                WHERE id = ?;
+                """,
+                (alert_id,),
+            ).fetchone()
+
+        return jsonify({"alert": {"id": int(updated["id"]), "status": updated["status"]}})
 
     return app
 
