@@ -1,0 +1,4 @@
+{
+    "command": "source venv/bin/activate && flask run --host <host> --port <port>",
+    "working_directory": "/home/kavia/workspace/code-generation/voltguard-energy-management-system-241854/flask_backend"
+}
